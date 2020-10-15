@@ -16,6 +16,7 @@ def term_extractor(
     weights: Sequence[float] = None,
     verbose: bool = False,
     technical_counts: Mapping[str, int] = None,
+    do_parallelize: bool = True
 ):
 
     if general_corpus is None:
@@ -23,7 +24,7 @@ def term_extractor(
 
     # reused initializations
     technical_counts_seperate = TermExtraction(
-        technical_corpus
+        corpus=technical_corpus, do_parallelize=do_parallelize
     ).count_terms_from_documents(True, verbose=verbose)
     if type(technical_counts_seperate) is pd.DataFrame:
         technical_counts = technical_counts_seperate.sum(axis=1)
@@ -109,9 +110,10 @@ def term_extractor(
             "\n",
             lexical_cohesion.sort_values(ascending=False),
         )
+    # return df
     if weights is None:
         weights = np.array([1, 1, 1]) / 3
-    return df.dot(weights)
+    return df.apply(lambda s: s.values.dot(weights), axis=1)
 
 
 if __name__ == "__main__":

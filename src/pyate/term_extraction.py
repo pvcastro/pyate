@@ -21,7 +21,7 @@ Corpus = Union[str, Sequence[str]]
 
 class TermExtraction:
     # TODO: find some way to prevent redundant loading of csv files
-    nlp = spacy.load("en_core_web_sm", parser=False, entity=False)
+    nlp = spacy.load("pt_core_news_sm", parser=False, entity=False)
     matcher = Matcher(nlp.vocab)
     language = "en"
     MAX_WORD_LENGTH = 6
@@ -32,23 +32,34 @@ class TermExtraction:
     )
 
     noun, adj, prep = (
-        {"POS": "NOUN", "IS_PUNCT": False},
-        {"POS": "ADJ", "IS_PUNCT": False},
-        {"POS": "DET", "IS_PUNCT": False},
+        {"POS": {"IN": ["NOUN", "PROPN"]}, "IS_PUNCT": False},
+        {"POS": {"IN": ["ADJ", "ADP"]}, "IS_PUNCT": False},
+        {"POS": {"IN": ["DET", "PRON"]}, "IS_PUNCT": False},
     )
+
 
     patterns = [
         [adj],
-        [{"POS": {"IN": ["ADJ", "NOUN"]}, "OP": "*", "IS_PUNCT": False}, noun],
         [
-            {"POS": {"IN": ["ADJ", "NOUN"]}, "OP": "*", "IS_PUNCT": False},
             noun,
-            prep,
-            {"POS": {"IN": ["ADJ", "NOUN"]}, "OP": "*", "IS_PUNCT": False},
-            noun,
+            {"POS": {"IN": ["ADJ", "NOUN", "PROPN"]}, "OP": "*", "IS_PUNCT": False}
         ],
+        [
+            {'POS': 'ADP', 'OP': '?', "IS_PUNCT": False},
+            prep,
+            {'POS': 'PUNCT', 'OP': '?'},
+            {'POS': {'IN': ['DET', 'PRON']}, 'OP': '?', "IS_PUNCT": False},
+            {'POS': 'PUNCT', 'OP': '?'},
+            noun
+        ],
+        [
+            noun,
+            {'POS': {'IN': ['ADP', 'ADJ']}, 'OP': '?'},
+            {'POS': {'IN': ['DET', 'PRON']}, 'OP': '?'},
+            {'POS': {'IN': ['NOUN', 'PROPN']}, 'OP': '?'},
+            {'POS': {'IN': ['ADP', 'ADJ']}, 'OP': '?'}
+        ]
     ]
-
     def __init__(
         self,
         corpus: Union[str, Iterable[str]],
@@ -118,8 +129,7 @@ class TermExtraction:
             for i, pattern in enumerate(self.patterns):
                 TermExtraction.matcher.add("term{}".format(i), add_to_counter, pattern)
 
-            doc = TermExtraction.nlp(document.lower(), disable=["parser", "ner"])
-            matches = TermExtraction.matcher(doc)
+            TermExtraction.matcher(TermExtraction.nlp(document.lower(), disable=["parser", "ner"]))
         else:
             for end_index, (insert_order, original_value) in self.trie.iter(
                 document.lower()
